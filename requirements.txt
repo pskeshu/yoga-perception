@@ -1,5 +1,3 @@
-torch
-torchvision
-detectron2
+mediapipe
 opencv-python
 numpy

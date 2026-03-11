@@ -1,12 +1,15 @@
 # yoga_perception
 
-Yoga alignment analysis powered by DensePose. Inspired by the precision and alignment-focused practice of Iyengar yoga, this tool uses computer vision to detect body positioning and provide verbal alignment cues — much like an attentive yoga teacher would.
+Yoga alignment analysis inspired by the precision of Iyengar yoga. Uses computer vision to detect body positioning and provide verbal alignment cues -- much like an attentive yoga teacher would.
+
+Currently uses **MediaPipe PoseLandmarker** for pose detection. Planned migration to **DensePose** (via Docker) for full body surface mapping including spine tracking.
 
 ## How it works
 
-1. **DensePose inference** maps every visible pixel of the body to a 3D surface model
+1. **Pose estimation** detects 33 body landmarks (joints, extremities)
 2. **Pose analysis** computes joint angles, body part orientations, and relative positions
 3. **Cue engine** compares measurements against alignment rules and generates Iyengar-style verbal cues
+4. **3-panel output** shows original image, pose skeleton, and annotated image with cues
 
 ## Supported poses
 
@@ -100,3 +103,10 @@ register_pose({
     ],
 })
 ```
+
+## Roadmap
+
+- [ ] **DensePose via Docker** — Switch from MediaPipe to DensePose for full body surface mapping. This will enable tracking of sternum, dorsal spine, lumbar spine, and sacrum — critical for Iyengar alignment cues around spinal posture, chest opening, and pelvic tilt.
+- [ ] Spine-specific alignment rules (thoracic kyphosis, lumbar lordosis, pelvic tilt)
+- [ ] Real-time video/webcam support
+- [ ] More pose definitions

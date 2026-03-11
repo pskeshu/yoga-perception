@@ -1,14 +1,14 @@
-"""Cue engine: compares DensePose output against pose rules and generates cues."""
+"""Cue engine: compares pose landmarks against alignment rules and generates cues."""
 
-from .densepose_inference import compute_body_angles
+import numpy as np
 from .pose_definitions import get_pose
 
 
-def analyze_pose(body_parts, pose_name):
-    """Analyze a detected body against a target pose's alignment rules.
+def analyze_pose(result, pose_name):
+    """Analyze detected pose against a target pose's alignment rules.
 
     Args:
-        body_parts: dict from extract_body_parts() for one person.
+        result: output from pose_inference.run_inference().
         pose_name: name of the target pose (e.g. "tadasana").
 
     Returns:
@@ -21,10 +21,10 @@ def analyze_pose(body_parts, pose_name):
             - score: alignment score (0-100)
     """
     pose = get_pose(pose_name)
-    angles = compute_body_angles(body_parts)
+    angles = dict(result["angles"])
 
     # Add derived checks
-    angles.update(_compute_derived_checks(body_parts, angles, pose_name))
+    angles.update(_compute_derived_checks(result["landmarks"], angles))
 
     cues = []
     aligned = []
@@ -100,25 +100,25 @@ def format_feedback(analysis, max_cues=5):
     return "\n".join(lines)
 
 
-def _compute_derived_checks(body_parts, angles, pose_name):
+def _compute_derived_checks(landmarks, angles):
     """Compute pose-specific derived measurements."""
     derived = {}
 
-    # Arms aligned vertically (for Trikonasana)
-    left_arm = body_parts.get("left_upper_arm_front", {}).get("centroid")
-    right_arm = body_parts.get("right_upper_arm_front", {}).get("centroid")
-    if left_arm and right_arm:
-        x_diff = abs(left_arm[0] - right_arm[0])
-        y_diff = abs(left_arm[1] - right_arm[1])
-        if y_diff > 0:
-            derived["arms_aligned"] = x_diff < 30 and y_diff > 50
+    # Arms aligned vertically (for Trikonasana): left and right wrist x close
+    lw = landmarks.get("left_wrist")
+    rw = landmarks.get("right_wrist")
+    ls = landmarks.get("left_shoulder")
+    rs = landmarks.get("right_shoulder")
+    if lw and rw and ls and rs:
+        wrist_x_diff = abs(lw["x"] - rw["x"])
+        wrist_y_diff = abs(lw["y"] - rw["y"])
+        derived["arms_aligned"] = wrist_x_diff < 40 and wrist_y_diff > 100
 
-    # Arms horizontal (for Warrior II)
-    if left_arm and right_arm:
-        y_diff = abs(left_arm[1] - right_arm[1])
-        derived["arms_horizontal"] = y_diff < 20
+    # Arms horizontal: wrists at roughly same y-level
+    if lw and rw:
+        derived["arms_horizontal"] = abs(lw["y"] - rw["y"]) < 30
 
-    # Front knee angle (use the leg with larger bend)
+    # Front knee angle: whichever knee is more bent
     left_angle = angles.get("left_leg_angle", 180)
     right_angle = angles.get("right_leg_angle", 180)
     if left_angle < right_angle:
@@ -130,7 +130,6 @@ def _compute_derived_checks(body_parts, angles, pose_name):
         derived["back_leg_angle"] = left_angle
         derived["standing_leg_angle"] = left_angle
 
-    # Front knee over ankle (simplified: check if front leg is straight)
     derived["front_knee_over_ankle"] = derived.get("front_knee_angle", 180) > 165
 
     return derived
